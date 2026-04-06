@@ -95,6 +95,10 @@ function requireApiKey(req, res, next) {
 }
 app.use('/api', requireApiKey);
 
+// ─── Serve Frontend ───────────────────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, 'frontend')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'frontend', 'index.html')));
+
 // ─── Input Validators ─────────────────────────────────────────────────────────
 function validateTask(body) {
   if (!body || typeof body.title !== 'string' || !body.title.trim())
