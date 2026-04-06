@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NexusAI — Multi-Agent System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0b0f;--bg2:#111318;--bg3:#16181f;--bg4:#1c1f28;
+  --border:#ffffff12;--border2:#ffffff1e;
+  --text:#e8eaf0;--text2:#9398a8;--text3:#5a6075;
+  --accent:#6366f1;--accent2:#818cf8;--accent-glow:#6366f130;
+  --green:#10b981;--amber:#f59e0b;--pink:#ec4899;--purple:#8b5cf6;--red:#ef4444;
+  --radius:12px;--radius-sm:8px;--radius-lg:16px;
+  --font:'DM Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+  --shadow:0 4px 24px #00000060;
+  --sidebar:240px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6;overflow:hidden}
+#app{display:flex;height:100vh;overflow:hidden}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* ── Sidebar ── */
+#sidebar{width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:transform .3s;z-index:100}
+.sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid var(--border)}
+.logo-mark{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--purple));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.logo-text{font-size:16px;font-weight:600;letter-spacing:-.3px}
+.logo-sub{font-size:11px;color:var(--text3);margin-top:-2px}
+
+.nav{flex:1;padding:12px 8px;overflow-y:auto}
+.nav-section{margin-bottom:20px}
+.nav-label{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:0 12px;margin-bottom:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;font-size:14px;font-weight:400;color:var(--text2);user-select:none;-webkit-user-select:none;position:relative}
+.nav-item:hover{background:var(--bg4);color:var(--text)}
+.nav-item.active{background:var(--accent-glow);color:var(--accent2)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:60%;background:var(--accent);border-radius:0 3px 3px 0}
+.nav-icon{font-size:16px;width:20px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:600;padding:2px 6px;border-radius:10px;min-width:18px;text-align:center}
+
+.sidebar-agents{padding:12px;border-top:1px solid var(--border)}
+.agent-list-label{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.agent-pill{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;margin-bottom:4px;font-size:12px;background:var(--bg3)}
+.agent-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.agent-dot.active{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.agent-name{color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-status{font-size:10px;color:var(--text3)}
+
+/* ── Main ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{padding:0 24px;height:60px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;background:var(--bg2);flex-shrink:0}
+.topbar-title{font-size:17px;font-weight:600;flex:1}
+.topbar-sub{font-size:12px;color:var(--text3);margin-top:-2px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:13px;font-family:var(--font);font-weight:500;transition:all .15s;user-select:none}
+.btn:hover{background:var(--bg4);color:var(--text);border-color:var(--border2)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px}
+.hamburger{display:none;padding:8px;border-radius:6px;cursor:pointer;background:none;border:1px solid var(--border);color:var(--text2)}
+
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px}
+.view{display:none;animation:fadeIn .2s ease}
+.view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Cards ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.card-sm{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px}
+.section-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px}
+
+/* ── API Key Setup Screen ── */
+#api-key-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px}
+.apikey-box{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:40px;max-width:480px;width:100%;box-shadow:var(--shadow)}
+.apikey-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.apikey-logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--purple));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.apikey-title{font-size:22px;font-weight:600;margin-bottom:8px}
+.apikey-sub{font-size:14px;color:var(--text2);margin-bottom:24px;line-height:1.6}
+.apikey-hint{font-size:12px;color:var(--text3);margin-top:8px;line-height:1.5}
+.apikey-hint code{background:var(--bg4);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--accent2)}
+.apikey-error{font-size:12px;color:var(--red);margin-top:8px;display:none}
+.apikey-input-row{display:flex;gap:8px;margin-bottom:4px}
+.apikey-input-row .form-input{flex:1;font-family:var(--mono);font-size:13px;letter-spacing:.5px}
+
+/* ── Settings modal ── */
+#settings-btn{padding:6px 10px;font-size:18px;background:none;border:1px solid var(--border);color:var(--text3);border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;line-height:1}
+#settings-btn:hover{color:var(--text);border-color:var(--border2);background:var(--bg3)}
+.settings-row{display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:12px}
+.settings-key-label{font-size:12px;color:var(--text3);margin-bottom:4px}
+.settings-key-val{font-family:var(--mono);font-size:12px;color:var(--text2);word-break:break-all}
+.settings-status{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:6px 10px;border-radius:6px;margin-bottom:16px}
+.settings-status.ok{background:#10b98118;color:var(--green)}
+.settings-status.err{background:#ef444420;color:#f87171}
+
+/* ── Stats grid ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;position:relative;overflow:hidden;transition:border-color .2s}
+.stat-card:hover{border-color:var(--border2)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.blue::before{background:var(--accent)}
+.stat-card.green::before{background:var(--green)}
+.stat-card.amber::before{background:var(--amber)}
+.stat-card.pink::before{background:var(--pink)}
+.stat-card.purple::before{background:var(--purple)}
+.stat-value{font-size:28px;font-weight:600;line-height:1;margin-bottom:6px}
+.stat-label{font-size:12px;color:var(--text3);font-weight:500}
+.stat-change{font-size:11px;margin-top:4px}
+.stat-change.up{color:var(--green)}
+.stat-change.down{color:var(--red)}
+
+/* ── Kanban ── */
+.kanban-board{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:16px;align-items:start;overflow-x:auto;padding-bottom:8px}
+.kanban-col{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.kanban-header{padding:14px 16px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.kanban-dot{width:8px;height:8px;border-radius:50%}
+.kanban-count{margin-left:auto;background:var(--bg3);color:var(--text3);font-size:11px;padding:2px 7px;border-radius:10px}
+.kanban-items{padding:8px;min-height:200px;display:flex;flex-direction:column;gap:8px}
+.task-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;cursor:pointer;transition:all .15s;user-select:none}
+.task-card:hover{border-color:var(--border2);background:var(--bg4);transform:translateY(-1px)}
+.task-title{font-size:13px;font-weight:500;margin-bottom:8px;color:var(--text)}
+.task-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;font-family:var(--mono)}
+.priority-high{background:#ef444420;color:#f87171;border:1px solid #ef444430}
+.priority-medium{background:#f59e0b20;color:#fbbf24;border:1px solid #f59e0b30}
+.priority-low{background:#10b98120;color:#34d399;border:1px solid #10b98130}
+.task-assignee{font-size:10px;color:var(--text3);margin-left:auto}
+.task-date{font-size:10px;color:var(--text3)}
+.kanban-add{display:flex;align-items:center;gap:6px;padding:8px 12px;color:var(--text3);font-size:12px;cursor:pointer;border-top:1px solid var(--border);transition:all .15s}
+.kanban-add:hover{background:var(--bg3);color:var(--text2)}
+
+/* ── Calendar ── */
+.calendar-grid{display:grid;grid-template-columns:1fr;gap:16px}
+.cal-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.cal-nav{display:flex;gap:6px}
+.cal-nav button{background:var(--bg3);border:1px solid var(--border);color:var(--text2);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.cal-nav button:hover{background:var(--bg4);color:var(--text)}
+.cal-title{font-size:18px;font-weight:600;flex:1}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.cal-day-label{text-align:center;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:8px 0}
+.cal-cells{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-cell{min-height:80px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px;cursor:pointer;transition:all .15s;position:relative}
+.cal-cell:hover{border-color:var(--border2);background:var(--bg3)}
+.cal-cell.today{border-color:var(--accent);background:var(--accent-glow)}
+.cal-cell.other-month .cal-date{color:var(--text3)}
+.cal-date{font-size:12px;font-weight:500;margin-bottom:4px}
+.cal-event{font-size:10px;padding:2px 5px;border-radius:3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.cal-upcoming{display:flex;flex-direction:column;gap:10px}
+.event-item{display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.event-time-badge{display:flex;flex-direction:column;align-items:center;background:var(--bg4);border-radius:6px;padding:4px 8px;min-width:48px;font-size:11px;font-weight:600;color:var(--text2)}
+.event-info{flex:1}
+.event-title{font-size:13px;font-weight:500;margin-bottom:2px}
+.event-meta{font-size:11px;color:var(--text3)}
+.event-delete{color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:4px;transition:all .15s}
+.event-delete:hover{color:var(--red);background:#ef444420}
+
+/* ── Notes ── */
+.notes-layout{display:grid;grid-template-columns:280px 1fr;gap:16px;height:calc(100vh - 160px)}
+.notes-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto}
+.note-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;cursor:pointer;transition:all .15s}
+.note-item:hover{border-color:var(--border2);background:var(--bg3)}
+.note-item.selected{border-color:var(--accent);background:var(--accent-glow)}
+.note-item-title{font-size:13px;font-weight:500;margin-bottom:4px}
+.note-item-preview{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note-item-tags{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.note-tag{font-size:10px;padding:1px 6px;border-radius:3px;background:var(--bg4);color:var(--text3);font-family:var(--mono)}
+.note-editor{display:flex;flex-direction:column;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.note-editor-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.note-editor-title{flex:1;background:none;border:none;color:var(--text);font-size:17px;font-weight:600;font-family:var(--font);outline:none}
+.note-editor-title::placeholder{color:var(--text3)}
+.note-editor-body{flex:1;padding:20px;overflow-y:auto}
+.note-content-area{width:100%;height:100%;min-height:300px;background:none;border:none;color:var(--text);font-size:14px;font-family:var(--font);line-height:1.7;resize:none;outline:none}
+.note-content-area::placeholder{color:var(--text3)}
+
+/* ── Workflow builder ── */
+.workflow-layout{display:grid;grid-template-columns:1fr 320px;gap:16px;min-height:500px}
+.wf-canvas{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden}
+.wf-bg{position:absolute;inset:0;background-image:radial-gradient(circle,var(--border) 1px,transparent 1px);background-size:24px 24px;opacity:.5}
+.wf-content{position:relative;z-index:1}
+.wf-list{display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:calc(100vh - 220px)}
+.wf-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:all .15s}
+.wf-item:hover{border-color:var(--border2)}
+.wf-item-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.wf-status-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
+.wf-status-badge.completed{background:#10b98125;color:#34d399}
+.wf-status-badge.running{background:#6366f125;color:#818cf8;animation:blink .8s ease-in-out infinite}
+.wf-status-badge.pending{background:#f59e0b20;color:#fbbf24}
+.wf-status-badge.failed{background:#ef444420;color:#f87171}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
+.wf-name{font-size:14px;font-weight:600;flex:1}
+.wf-progress-bar{height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;margin-bottom:10px}
+.wf-progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--purple));transition:width .4s ease}
+.wf-steps{display:flex;flex-direction:column;gap:4px}
+.wf-step{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0}
+.step-status{width:14px;height:14px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px}
+.step-status.done{background:#10b98130;color:var(--green)}
+.step-status.running{background:#6366f130;color:var(--accent2);animation:blink .8s infinite}
+.step-status.pending{background:var(--bg4);color:var(--text3)}
+.step-name{flex:1;color:var(--text2)}
+.step-agent-tag{font-size:10px;color:var(--text3);background:var(--bg4);padding:1px 5px;border-radius:3px;font-family:var(--mono)}
+.step-dur{font-size:10px;color:var(--text3)}
+
+/* ── Agent Activity Panel ── */
+.activity-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.activity-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.activity-header-title{font-size:13px;font-weight:600}
+.live-badge{font-size:10px;font-weight:600;color:var(--green);background:#10b98118;padding:2px 7px;border-radius:10px;display:flex;align-items:center;gap:4px}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 1s infinite}
+.log-list{height:280px;overflow-y:auto;padding:8px}
+.log-item{display:flex;gap:8px;padding:6px 8px;border-radius:6px;margin-bottom:2px;font-size:11px;transition:background .15s}
+.log-item:hover{background:var(--bg3)}
+.log-time{color:var(--text3);font-family:var(--mono);white-space:nowrap;flex-shrink:0}
+.log-agent{font-weight:600;flex-shrink:0;min-width:80px}
+.log-action{color:var(--text3);font-family:var(--mono);font-size:10px;flex-shrink:0}
+.log-detail{color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-item.success .log-agent{color:var(--green)}
+.log-item.warning .log-agent{color:var(--amber)}
+.log-item.error .log-agent{color:var(--red)}
+.log-item.info .log-agent{color:var(--accent2)}
+
+/* ── Orchestrator ── */
+.orchestrator-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
+.orchestrator-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.orchestrator-input-area{padding:16px 20px}
+.orch-input-row{display:flex;gap:10px}
+.orch-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color .15s}
+.orch-input:focus{border-color:var(--accent)}
+.orch-input::placeholder{color:var(--text3)}
+.orch-suggestions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.orch-chip{font-size:11px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;cursor:pointer;color:var(--text3);transition:all .15s}
+.orch-chip:hover{border-color:var(--accent);color:var(--accent2);background:var(--accent-glow)}
+.orch-result{margin-top:14px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;line-height:1.6}
+.orch-result-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.orch-actions-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.orch-action-item{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 8px;background:var(--bg4);border-radius:6px}
+.orch-action-agent{font-weight:600;color:var(--accent2);min-width:100px}
+.orch-action-tool{font-family:var(--mono);font-size:10px;color:var(--amber)}
+.orch-loading{display:flex;align-items:center;gap:10px;color:var(--text2);font-size:13px}
+.spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:#00000080;z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:24px;width:90%;max-width:480px;box-shadow:var(--shadow)}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:20px}
+.form-group{margin-bottom:16px}
+.form-label{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;display:block}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color .15s}
+.form-input:focus{border-color:var(--accent)}
+.form-input option{background:var(--bg3)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+/* ── Agent cards ── */
+.agents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.agent-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden}
+.agent-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0}
+.agent-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.agent-avatar{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;flex-shrink:0}
+.agent-card-name{font-size:14px;font-weight:600}
+.agent-card-role{font-size:11px;color:var(--text3)}
+.agent-card-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.agent-stat{background:var(--bg3);border-radius:6px;padding:8px;text-align:center}
+.agent-stat-val{font-size:16px;font-weight:600}
+.agent-stat-lbl{font-size:10px;color:var(--text3);margin-top:1px}
+.status-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:3px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
+.status-chip.active{background:#10b98118;color:var(--green)}
+.status-chip.idle{background:#f59e0b18;color:var(--amber)}
+
+/* ── Dashboard layout ── */
+.dash-grid{display:grid;grid-template-columns:1fr 320px;gap:20px}
+.dash-main{display:flex;flex-direction:column;gap:20px}
+.dash-side{display:flex;flex-direction:column;gap:16px}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .kanban-board{grid-template-columns:repeat(2,1fr)}
+  .notes-layout{grid-template-columns:1fr}
+  .workflow-layout{grid-template-columns:1fr}
+  .dash-grid{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  #sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%)}
+  #sidebar.open{transform:translateX(0);box-shadow:var(--shadow)}
+  .hamburger{display:flex}
+  .kanban-board{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .content{padding:16px}
+  .cal-cells{grid-template-columns:repeat(7,1fr)}
+  .cal-cell{min-height:48px;padding:3px}
+  .notes-layout{height:auto}
+}
+</style>
+</head>
+<body>
+<!-- API Key Setup Screen -->
+<div id="api-key-screen">
+  <div class="apikey-box">
+    <div class="apikey-logo">
+      <div class="apikey-logo-icon">✦</div>
+      <div>
+        <div style="font-size:17px;font-weight:600">NexusAI</div>
+        <div style="font-size:12px;color:var(--text3)">Multi-Agent System</div>
+      </div>
+    </div>
+    <div class="apikey-title">Connect to Backend</div>
+    <div class="apikey-sub">Enter your NexusAI API key to connect to the live backend. Your key is stored locally in your browser.</div>
+    <div class="apikey-input-row">
+      <input class="form-input" id="apikey-input" type="password" placeholder="nexus-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" onkeydown="if(event.key==='Enter')connectWithKey()"/>
+      <button class="btn btn-primary" onclick="connectWithKey()" id="apikey-btn">Connect</button>
+    </div>
+    <div class="apikey-error" id="apikey-error">Invalid key — check the key printed in your terminal on first server start.</div>
+    <div class="apikey-hint">Find your key in the server terminal output when you first ran <code>node server.js</code>. You can also create new keys via <code>POST /api/keys</code>.</div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal">
+    <div class="modal-title">⚙ Settings</div>
+    <div id="settings-conn-status" class="settings-status ok">
+      <span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>
+      Connected to backend
+    </div>
+    <div class="settings-key-label">Active API Key</div>
+    <div class="settings-row" style="margin-bottom:16px">
+      <div style="flex:1">
+        <div class="settings-key-val" id="settings-key-display">—</div>
+      </div>
+      <button class="btn btn-sm" onclick="document.getElementById('settings-newkey-input').style.display='block';document.getElementById('settings-newkey-input').focus()">Change</button>
+    </div>
+    <div id="settings-newkey-input" style="display:none">
+      <div class="form-group">
+        <label class="form-label">New API Key</label>
+        <input class="form-input" id="settings-newkey" type="password" placeholder="nexus-…" onkeydown="if(event.key==='Enter')changeApiKey()"/>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn" onclick="document.getElementById('settings-newkey-input').style.display='none'">Cancel</button>
+        <button class="btn btn-primary" onclick="changeApiKey()">Save Key</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Backend URL</label>
+      <input class="form-input" id="settings-url" placeholder="http://localhost:3001" onchange="changeBackendUrl(this.value)"/>
+    </div>
+    <div class="modal-actions" style="margin-top:8px">
+      <button class="btn" onclick="closeModal('settings-modal')">Close</button>
+      <button class="btn" onclick="disconnectKey()" style="color:var(--red);border-color:#ef444430">Disconnect</button>
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">⬡</div>
+        <div>
+          <div class="logo-text">NexusAI</div>
+          <div class="logo-sub">Multi-Agent System</div>
+        </div>
+      </div>
+    </div>
+    <div class="nav">
+      <div class="nav-section">
+        <div class="nav-label">Overview</div>
+        <div class="nav-item active" onclick="navigate('dashboard')">
+          <span class="nav-icon">◈</span> Dashboard
+        </div>
+        <div class="nav-item" onclick="navigate('agents')">
+          <span class="nav-icon">◉</span> Agents
+          <span class="nav-badge" id="agent-count">5</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Tools</div>
+        <div class="nav-item" onclick="navigate('kanban')">
+          <span class="nav-icon">▤</span> Kanban
+          <span class="nav-badge" id="task-count">4</span>
+        </div>
+        <div class="nav-item" onclick="navigate('calendar')">
+          <span class="nav-icon">◫</span> Calendar
+        </div>
+        <div class="nav-item" onclick="navigate('notes')">
+          <span class="nav-icon">◧</span> Notes
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Automation</div>
+        <div class="nav-item" onclick="navigate('workflows')">
+          <span class="nav-icon">⟐</span> Workflows
+          <span class="nav-badge" id="wf-count">2</span>
+        </div>
+        <div class="nav-item" onclick="navigate('orchestrator')">
+          <span class="nav-icon">✦</span> Orchestrator
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-agents">
+      <div class="agent-list-label">Agent Status</div>
+      <div id="agent-status-list"></div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div id="main">
+    <div class="topbar">
+      <button class="hamburger" onclick="toggleSidebar()">☰</button>
+      <div>
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-sub" id="topbar-sub">Overview of your multi-agent system</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-left:auto;align-items:center">
+        <div id="connection-badge" style="font-size:11px;padding:4px 10px;border-radius:10px;background:#ef444420;color:#f87171;font-weight:500;display:flex;align-items:center;gap:4px">
+          <span style="width:5px;height:5px;border-radius:50%;background:#f87171;display:inline-block"></span> Connecting
+        </div>
+        <button id="settings-btn" onclick="openSettings()" title="Settings">⚙</button>
+        <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Dashboard View -->
+      <div id="view-dashboard" class="view active">
+        <div class="stats-grid">
+          <div class="stat-card blue">
+            <div class="stat-value" id="stat-tasks">0</div>
+            <div class="stat-label">Total Tasks</div>
+            <div class="stat-change up" id="stat-tasks-change"></div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-value" id="stat-events">0</div>
+            <div class="stat-label">Calendar Events</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-value" id="stat-notes">0</div>
+            <div class="stat-label">Notes</div>
+          </div>
+          <div class="stat-card pink">
+            <div class="stat-value" id="stat-workflows">0</div>
+            <div class="stat-label">Workflows</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-value" id="stat-agents">0</div>
+            <div class="stat-label">Active Agents</div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="dash-main">
+            <!-- Orchestrator quick panel -->
+            <div class="orchestrator-panel">
+              <div class="orchestrator-header">
+                <div style="font-size:20px">✦</div>
+                <div>
+                  <div style="font-size:14px;font-weight:600">AI Orchestrator</div>
+                  <div style="font-size:12px;color:var(--text3)">Coordinate all agents with natural language</div>
+                </div>
+              </div>
+              <div class="orchestrator-input-area">
+                <div class="orch-input-row">
+                  <input class="orch-input" id="orch-input" placeholder="e.g. Create a task for API review and schedule a meeting next Monday…" onkeydown="if(event.key==='Enter')runOrchestrator()"/>
+                  <button class="btn btn-primary" onclick="runOrchestrator()" id="orch-btn">Run ✦</button>
+                </div>
+                <div class="orch-suggestions">
+                  <span class="orch-chip" onclick="setOrchPrompt(this)">Create sprint tasks and schedule kickoff</span>
+                  <span class="orch-chip" onclick="setOrchPrompt(this)">Generate release notes and add to calendar</span>
+                  <span class="orch-chip" onclick="setOrchPrompt(this)">Plan weekly standup and create agenda note</span>
+                  <span class="orch-chip" onclick="setOrchPrompt(this)">Summarize completed tasks into a report note</span>
+                </div>
+                <div id="orch-result" style="display:none"></div>
+              </div>
+            </div>
+
+            <!-- Recent activity -->
+            <div class="card">
+              <div class="section-title">Agent Activity Feed</div>
+              <div id="dash-activity-feed" class="log-list" style="height:200px;padding:0"></div>
+            </div>
+          </div>
+          <div class="dash-side">
+            <!-- Agent status -->
+            <div class="card" style="padding:0;overflow:hidden">
+              <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600">Agent Fleet</div>
+              <div id="dash-agents" style="padding:8px"></div>
+            </div>
+            <!-- Running workflows -->
+            <div class="card" style="padding:0;overflow:hidden">
+              <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:13px;font-weight:600">Active Workflows</span>
+                <div class="live-badge"><div class="live-dot"></div>Live</div>
+              </div>
+              <div id="dash-workflows" style="padding:8px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kanban View -->
+      <div id="view-kanban" class="view">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <div style="font-size:18px;font-weight:600">Task Board</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">Managed by Task Agent</div>
+          </div>
+          <button class="btn btn-primary" onclick="openTaskModal()">+ New Task</button>
+        </div>
+        <div class="kanban-board" id="kanban-board"></div>
+      </div>
+
+      <!-- Calendar View -->
+      <div id="view-calendar" class="view">
+        <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+          <div style="flex:1;min-width:300px">
+            <div class="cal-header">
+              <div class="cal-nav">
+                <button onclick="calNav(-1)">‹</button>
+                <button onclick="calNav(1)">›</button>
+              </div>
+              <div class="cal-title" id="cal-title"></div>
+              <button class="btn btn-primary btn-sm" onclick="openEventModal()">+ Event</button>
+            </div>
+            <div class="cal-days">
+              <div class="cal-day-label">Sun</div><div class="cal-day-label">Mon</div>
+              <div class="cal-day-label">Tue</div><div class="cal-day-label">Wed</div>
+              <div class="cal-day-label">Thu</div><div class="cal-day-label">Fri</div>
+              <div class="cal-day-label">Sat</div>
+            </div>
+            <div class="cal-cells" id="cal-cells"></div>
+          </div>
+          <div style="width:280px;flex-shrink:0">
+            <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text2)">UPCOMING EVENTS</div>
+            <div id="upcoming-events" class="cal-upcoming"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes View -->
+      <div id="view-notes" class="view">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <div style="font-size:18px;font-weight:600">Notes Workspace</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">Organized by Notes Agent</div>
+          </div>
+          <button class="btn btn-primary" onclick="createNote()">+ New Note</button>
+        </div>
+        <div class="notes-layout">
+          <div class="notes-list" id="notes-list"></div>
+          <div class="note-editor" id="note-editor">
+            <div class="note-editor-header">
+              <input class="note-editor-title" id="note-title-input" placeholder="Note title…" oninput="saveCurrentNote()"/>
+              <button class="btn btn-sm" onclick="deleteCurrentNote()" style="color:var(--red);border-color:#ef444430">Delete</button>
+            </div>
+            <div class="note-editor-body">
+              <textarea class="note-content-area" id="note-content-input" placeholder="Start writing… supports Markdown" oninput="saveCurrentNote()"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workflows View -->
+      <div id="view-workflows" class="view">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <div style="font-size:18px;font-weight:600">Workflow Builder</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">Automated multi-step pipelines</div>
+          </div>
+          <button class="btn btn-primary" onclick="openWorkflowModal()">+ New Workflow</button>
+        </div>
+        <div class="workflow-layout">
+          <div id="wf-list" class="wf-list"></div>
+          <div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="section-title">Quick Workflows</div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div class="card-sm" style="cursor:pointer;transition:all .15s" onclick="runPresetWorkflow('sprint')" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                  <div style="font-size:13px;font-weight:500;margin-bottom:4px">🚀 Sprint Kickoff</div>
+                  <div style="font-size:11px;color:var(--text3)">Create tasks → Schedule meetings → Generate notes → Notify</div>
+                </div>
+                <div class="card-sm" style="cursor:pointer;transition:all .15s" onclick="runPresetWorkflow('deploy')" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                  <div style="font-size:13px;font-weight:500;margin-bottom:4px">⚡ Deploy Pipeline</div>
+                  <div style="font-size:11px;color:var(--text3)">Run tests → Build → Stage → Smoke test → Update calendar</div>
+                </div>
+                <div class="card-sm" style="cursor:pointer;transition:all .15s" onclick="runPresetWorkflow('review')" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                  <div style="font-size:13px;font-weight:500;margin-bottom:4px">🔍 Code Review</div>
+                  <div style="font-size:11px;color:var(--text3)">Assign reviewer → Schedule session → Create review notes</div>
+                </div>
+              </div>
+            </div>
+            <div class="activity-panel">
+              <div class="activity-header">
+                <span class="activity-header-title">Agent Logs</span>
+                <div class="live-badge"><div class="live-dot"></div>Live</div>
+              </div>
+              <div id="wf-activity-feed" class="log-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Orchestrator View -->
+      <div id="view-orchestrator" class="view">
+        <div style="font-size:18px;font-weight:600;margin-bottom:4px">Orchestrator Console</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:20px">Send natural language commands to coordinate all agents</div>
+        <div class="orchestrator-panel" style="margin-bottom:20px">
+          <div class="orchestrator-input-area">
+            <div class="orch-input-row">
+              <input class="orch-input" id="orch-input-2" placeholder="Describe what you want the agents to do…" onkeydown="if(event.key==='Enter')runOrchestrator2()"/>
+              <button class="btn btn-primary" onclick="runOrchestrator2()" id="orch-btn-2">Execute ✦</button>
+            </div>
+            <div class="orch-suggestions">
+              <span class="orch-chip" onclick="setOrchPrompt2(this)">Create 3 high priority tasks for backend refactor</span>
+              <span class="orch-chip" onclick="setOrchPrompt2(this)">Schedule a deployment for next Friday evening</span>
+              <span class="orch-chip" onclick="setOrchPrompt2(this)">Write architecture notes for the new microservices</span>
+              <span class="orch-chip" onclick="setOrchPrompt2(this)">Organize weekly review: tasks, events, and notes</span>
+            </div>
+            <div id="orch-result-2" style="display:none"></div>
+          </div>
+        </div>
+        <div class="dash-grid">
+          <div class="activity-panel">
+            <div class="activity-header">
+              <span class="activity-header-title">Full Activity Log</span>
+              <div class="live-badge"><div class="live-dot"></div>Live</div>
+            </div>
+            <div id="orch-activity-feed" class="log-list" style="height:400px"></div>
+          </div>
+          <div class="card">
+            <div class="section-title">Agent Network</div>
+            <div id="orch-agents"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agents View -->
+      <div id="view-agents" class="view">
+        <div style="font-size:18px;font-weight:600;margin-bottom:4px">Agent Fleet</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:20px">Monitor and manage all specialized agents</div>
+        <div class="agents-grid" id="agents-grid"></div>
+        <div class="activity-panel">
+          <div class="activity-header">
+            <span class="activity-header-title">Agent Interaction Log</span>
+            <div class="live-badge"><div class="live-dot"></div>Real-time</div>
+          </div>
+          <div id="agents-activity-feed" class="log-list" style="height:300px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Task Modal -->
+<div class="modal-overlay" id="task-modal">
+  <div class="modal">
+    <div class="modal-title">Create Task</div>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="task-title" placeholder="Task title…"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-input" id="task-status">
+          <option value="todo">To Do</option>
+          <option value="in-progress">In Progress</option>
+          <option value="review">Review</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Priority</label>
+        <select class="form-input" id="task-priority">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Assignee</label>
+        <input class="form-input" id="task-assignee" placeholder="Agent or person…"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Due Date</label>
+        <input class="form-input" id="task-due" type="date"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tags (comma-separated)</label>
+      <input class="form-input" id="task-tags" placeholder="api, backend, docs…"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('task-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitTask()">Create Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Event Modal -->
+<div class="modal-overlay" id="event-modal">
+  <div class="modal">
+    <div class="modal-title">Schedule Event</div>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="event-title" placeholder="Event name…"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Start</label>
+        <input class="form-input" id="event-start" type="datetime-local"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">End</label>
+        <input class="form-input" id="event-end" type="datetime-local"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select class="form-input" id="event-type">
+        <option value="meeting">Meeting</option>
+        <option value="sync">Sync</option>
+        <option value="deploy">Deployment</option>
+        <option value="review">Review</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('event-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEvent()">Schedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- Workflow Modal -->
+<div class="modal-overlay" id="workflow-modal">
+  <div class="modal">
+    <div class="modal-title">New Workflow</div>
+    <div class="form-group">
+      <label class="form-label">Workflow Name</label>
+      <input class="form-input" id="wf-name" placeholder="e.g. Sprint Planning…"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Steps (one per line: name|agent)</label>
+      <textarea class="form-input" id="wf-steps" rows="5" placeholder="Run tests|task-agent&#10;Build artifact|task-agent&#10;Deploy to staging|orchestrator&#10;Update calendar|calendar-agent" style="resize:none;line-height:1.6"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('workflow-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitWorkflow()">Create & Run</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config (persisted in localStorage) ───────────────────────────────────────
+let BACKEND = localStorage.getItem('nexus_backend') || 'http://localhost:3001';
+let API_KEY  = localStorage.getItem('nexus_api_key') || '';
+let API      = BACKEND + '/api';
+
+let socket;
+let state = { tasks:[], events:[], notes:[], workflows:[], agents:[], logs:[] };
+let currentView = 'dashboard';
+let calDate = new Date();
+let selectedNoteId = null;
+
+// ── Auth helpers ──────────────────────────────────────────────────────────────
+function getHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (API_KEY) h['X-Api-Key'] = API_KEY;
+  return h;
+}
+
+async function testKey(key, backendUrl) {
+  try {
+    const url = (backendUrl || BACKEND) + '/api/stats';
+    const r = await fetch(url, { headers: { 'X-Api-Key': key, 'Content-Type': 'application/json' } });
+    return r.ok;
+  } catch { return false; }
+}
+
+async function connectWithKey() {
+  const key = document.getElementById('apikey-input').value.trim();
+  const btn = document.getElementById('apikey-btn');
+  const err = document.getElementById('apikey-error');
+  if (!key) { err.style.display='block'; err.textContent='Please enter your API key.'; return; }
+  btn.textContent = 'Checking…'; btn.disabled = true; err.style.display = 'none';
+  const ok = await testKey(key);
+  if (ok) {
+    API_KEY = key;
+    localStorage.setItem('nexus_api_key', key);
+    localStorage.setItem('nexus_backend', BACKEND);
+    launchApp();
+  } else {
+    err.style.display = 'block';
+    err.textContent = 'Could not connect — check your key and make sure the backend is running.';
+    btn.textContent = 'Connect'; btn.disabled = false;
+  }
+}
+
+function disconnectKey() {
+  localStorage.removeItem('nexus_api_key');
+  API_KEY = '';
+  if (socket) socket.disconnect();
+  closeModal('settings-modal');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('api-key-screen').style.display = 'flex';
+  document.getElementById('apikey-input').value = '';
+  document.getElementById('apikey-error').style.display = 'none';
+}
+
+function changeApiKey() {
+  const key = document.getElementById('settings-newkey').value.trim();
+  if (!key) return;
+  testKey(key).then(ok => {
+    if (ok) {
+      API_KEY = key;
+      localStorage.setItem('nexus_api_key', key);
+      document.getElementById('settings-key-display').textContent = maskKey(key);
+      document.getElementById('settings-newkey-input').style.display = 'none';
+      document.getElementById('settings-newkey').value = '';
+      updateSettingsStatus(true);
+    } else {
+      alert('Invalid key — backend rejected it.');
+    }
+  });
+}
+
+function changeBackendUrl(url) {
+  if (!url) return;
+  BACKEND = url.replace(/\/$/, '');
+  API = BACKEND + '/api';
+  localStorage.setItem('nexus_backend', BACKEND);
+}
+
+function maskKey(key) {
+  if (!key) return '—';
+  return key.substring(0, 10) + '••••••••••••••••••••' + key.slice(-4);
+}
+
+function openSettings() {
+  document.getElementById('settings-key-display').textContent = maskKey(API_KEY);
+  document.getElementById('settings-url').value = BACKEND;
+  testKey(API_KEY).then(ok => updateSettingsStatus(ok));
+  document.getElementById('settings-modal').classList.add('active');
+}
+
+function updateSettingsStatus(ok) {
+  const el = document.getElementById('settings-conn-status');
+  if (ok) {
+    el.className = 'settings-status ok';
+    el.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span> Connected to backend';
+  } else {
+    el.className = 'settings-status err';
+    el.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span> Cannot reach backend';
+  }
+}
+
+function launchApp() {
+  API = BACKEND + '/api';
+  document.getElementById('api-key-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  renderAll();
+  initSocket();
+}
+
+// ── Socket ────────────────────────────────────────────────────────────────────
+function initSocket() {
+  try {
+    socket = io(BACKEND, { auth: { key: API_KEY } });
+    socket.on('connect', () => {
+      document.getElementById('connection-badge').innerHTML = '<span style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 1s infinite"></span> Live';
+      document.getElementById('connection-badge').style.background='#10b98118';
+      document.getElementById('connection-badge').style.color='var(--green)';
+      // Refresh data on reconnect
+      loadLiveData();
+    });
+    socket.on('disconnect', () => {
+      document.getElementById('connection-badge').innerHTML = '<span style="width:5px;height:5px;border-radius:50%;background:var(--red);display:inline-block"></span> Offline';
+      document.getElementById('connection-badge').style.background='#ef444420';
+      document.getElementById('connection-badge').style.color='#f87171';
+    });
+    socket.on('init', (data) => {
+      state.tasks = data.tasks||[]; state.events = data.events||[];
+      state.notes = data.notes||[]; state.workflows = data.workflows||[];
+      state.agents = data.agents||[];
+      renderAll();
+    });
+    socket.on('tasks:update', t => { state.tasks=t; renderTasks(); updateBadges(); });
+    socket.on('events:update', e => { state.events=e; renderCalendar(); });
+    socket.on('notes:update', n => { state.notes=n; renderNotes(); updateBadges(); });
+    socket.on('workflows:update', w => { state.workflows=w; renderWorkflows(); updateBadges(); });
+    socket.on('agents:update', a => { state.agents=a; renderAgents(); renderSidebarAgents(); });
+    socket.on('agent:log', log => { state.logs.unshift(log); if(state.logs.length>100)state.logs.pop(); renderLogs(); });
+    socket.on('stats:update', s => updateStats(s));
+  } catch(e) { console.log('Socket unavailable'); loadLiveData(); }
+}
+
+function loadLiveData() {
+  const h = { headers: getHeaders() };
+  fetch(API+'/tasks', h).then(r=>r.json()).then(d=>{state.tasks=d;renderTasks();updateBadges();}).catch(()=>{});
+  fetch(API+'/events', h).then(r=>r.json()).then(d=>{state.events=d;renderCalendar();}).catch(()=>{});
+  fetch(API+'/notes', h).then(r=>r.json()).then(d=>{state.notes=d;renderNotes();}).catch(()=>{});
+  fetch(API+'/workflows', h).then(r=>r.json()).then(d=>{state.workflows=d;renderWorkflows();updateBadges();}).catch(()=>{});
+  fetch(API+'/agents', h).then(r=>r.json()).then(d=>{state.agents=d;renderAgents();renderSidebarAgents();}).catch(()=>{});
+  fetch(API+'/agents/logs', h).then(r=>r.json()).then(d=>{state.logs=d;renderLogs();}).catch(()=>{});
+}
+
+// ── Navigation ──
+const viewMeta = {
+  dashboard:{ title:'Dashboard', sub:'Overview of your multi-agent system' },
+  kanban:{ title:'Task Board', sub:'Managed by Task Agent' },
+  calendar:{ title:'Calendar', sub:'Managed by Calendar Agent' },
+  notes:{ title:'Notes', sub:'Managed by Notes Agent' },
+  workflows:{ title:'Workflows', sub:'Multi-step automation pipelines' },
+  orchestrator:{ title:'Orchestrator', sub:'AI-powered agent coordination' },
+  agents:{ title:'Agent Fleet', sub:'Monitor and manage all agents' },
+};
+
+function navigate(view) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{ if(n.textContent.toLowerCase().includes(view.toLowerCase().replace('-',' '))) n.classList.add('active'); });
+  currentView = view;
+  const meta = viewMeta[view]||{title:view,sub:''};
+  document.getElementById('topbar-title').textContent = meta.title;
+  document.getElementById('topbar-sub').textContent = meta.sub;
+  document.getElementById('sidebar').classList.remove('open');
+  if(view==='calendar') renderCalendar();
+  if(view==='kanban') renderTasks();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+function openAddModal() {
+  const v = currentView;
+  if(v==='kanban'||v==='dashboard') openTaskModal();
+  else if(v==='calendar') openEventModal();
+  else if(v==='notes') createNote();
+  else if(v==='workflows') openWorkflowModal();
+  else openTaskModal();
+}
+
+// ── Render Stats ──
+function updateStats(s) {
+  document.getElementById('stat-tasks').textContent = s.tasks||state.tasks.length;
+  document.getElementById('stat-events').textContent = s.events||state.events.length;
+  document.getElementById('stat-notes').textContent = s.notes||state.notes.length;
+  document.getElementById('stat-workflows').textContent = s.workflows||state.workflows.length;
+  document.getElementById('stat-agents').textContent = s.agents||state.agents.filter(a=>a.status==='active').length;
+}
+
+function updateBadges() {
+  document.getElementById('task-count').textContent = state.tasks.length;
+  document.getElementById('wf-count').textContent = state.workflows.length;
+  updateStats({});
+}
+
+// ── Render Tasks / Kanban ──
+const cols = [
+  {id:'todo',label:'To Do',color:'#6366f1'},
+  {id:'in-progress',label:'In Progress',color:'#f59e0b'},
+  {id:'review',label:'Review',color:'#8b5cf6'},
+  {id:'done',label:'Done',color:'#10b981'},
+];
+
+function renderTasks() {
+  const board = document.getElementById('kanban-board');
+  if(!board) return;
+  board.innerHTML = cols.map(col => {
+    const tasks = state.tasks.filter(t=>t.status===col.id);
+    return `<div class="kanban-col">
+      <div class="kanban-header">
+        <div class="kanban-dot" style="background:${col.color}"></div>
+        <span>${col.label}</span>
+        <span class="kanban-count">${tasks.length}</span>
+      </div>
+      <div class="kanban-items">
+        ${tasks.map(t=>`
+          <div class="task-card" onclick="editTask('${t.id}')">
+            <div class="task-title">${t.title}</div>
+            <div class="task-meta">
+              <span class="tag priority-${t.priority}">${t.priority}</span>
+              ${(t.tags||[]).map(tag=>`<span class="tag" style="background:var(--bg4);color:var(--text3);border:1px solid var(--border)">#${tag}</span>`).join('')}
+              <span class="task-assignee">${t.assignee||''}</span>
+            </div>
+            ${t.dueDate?`<div class="task-date" style="margin-top:6px;font-size:10px;color:var(--text3)">📅 ${t.dueDate}</div>`:''}
+          </div>
+        `).join('')}
+      </div>
+      <div class="kanban-add" onclick="openTaskModal('${col.id}')">
+        <span>+</span> Add task
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render Calendar ──
+function calNav(dir) { calDate.setMonth(calDate.getMonth()+dir); renderCalendar(); }
+
+function renderCalendar() {
+  const y = calDate.getFullYear(), m = calDate.getMonth();
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const el = document.getElementById('cal-title');
+  if(el) el.textContent = `${months[m]} ${y}`;
+
+  const cells = document.getElementById('cal-cells');
+  if(!cells) return;
+
+  const first = new Date(y,m,1).getDay();
+  const last = new Date(y,m+1,0).getDate();
+  const today = new Date();
+  let html = '';
+
+  // prev month padding
+  const prevLast = new Date(y,m,0).getDate();
+  for(let i=first-1;i>=0;i--) {
+    html += `<div class="cal-cell other-month"><div class="cal-date">${prevLast-i}</div></div>`;
+  }
+
+  for(let d=1;d<=last;d++) {
+    const isToday = d===today.getDate()&&m===today.getMonth()&&y===today.getFullYear();
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayEvents = state.events.filter(e=>e.start&&e.start.startsWith(dateStr));
+    html += `<div class="cal-cell${isToday?' today':''}" onclick="quickAddEvent('${dateStr}')">
+      <div class="cal-date">${d}</div>
+      ${dayEvents.slice(0,2).map(e=>`<div class="cal-event" style="background:${e.color||'#6366f1'}25;color:${e.color||'#818cf8'}">${e.title}</div>`).join('')}
+      ${dayEvents.length>2?`<div style="font-size:9px;color:var(--text3)">+${dayEvents.length-2} more</div>`:''}
+    </div>`;
+  }
+
+  cells.innerHTML = html;
+
+  // Upcoming events
+  const upcoming = document.getElementById('upcoming-events');
+  if(upcoming) {
+    const sorted = [...state.events].sort((a,b)=>new Date(a.start)-new Date(b.start));
+    upcoming.innerHTML = sorted.slice(0,5).map(e=>{
+      const start = new Date(e.start);
+      return `<div class="event-item">
+        <div class="event-time-badge" style="color:${e.color||'#818cf8'}">
+          ${String(start.getMonth()+1).padStart(2,'0')}/${String(start.getDate()).padStart(2,'0')}
+          <span style="font-weight:400;color:var(--text3)">${String(start.getHours()).padStart(2,'0')}:${String(start.getMinutes()).padStart(2,'0')}</span>
+        </div>
+        <div class="event-info">
+          <div class="event-title">${e.title}</div>
+          <div class="event-meta">${e.type||'event'}</div>
+        </div>
+        <div class="event-delete" onclick="deleteEvent('${e.id}')">✕</div>
+      </div>`;
+    }).join('') || '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">No upcoming events</div>';
+  }
+}
+
+// ── Notes ──
+function renderNotes() {
+  const list = document.getElementById('notes-list');
+  if(!list) return;
+  list.innerHTML = state.notes.map(n=>`
+    <div class="note-item${selectedNoteId===n.id?' selected':''}" onclick="selectNote('${n.id}')">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+        ${n.pinned?'<span style="font-size:10px">📌</span>':''}
+        <div class="note-item-title">${n.title||'Untitled'}</div>
+      </div>
+      <div class="note-item-preview">${(n.content||'').replace(/[#*\n`]/g,'').substring(0,60)}</div>
+      <div class="note-item-tags">
+        ${(n.tags||[]).map(t=>`<span class="note-tag">#${t}</span>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function selectNote(id) {
+  selectedNoteId = id;
+  const note = state.notes.find(n=>n.id===id);
+  if(!note) return;
+  document.getElementById('note-title-input').value = note.title||'';
+  document.getElementById('note-content-input').value = note.content||'';
+  renderNotes();
+}
+
+let noteSaveTimeout;
+function saveCurrentNote() {
+  if(!selectedNoteId) return;
+  clearTimeout(noteSaveTimeout);
+  noteSaveTimeout = setTimeout(async ()=>{
+    const title = document.getElementById('note-title-input').value;
+    const content = document.getElementById('note-content-input').value;
+    await apiCall('PUT',`/notes/${selectedNoteId}`,{title,content});
+  },600);
+}
+
+async function createNote() {
+  const note = await apiCall('POST','/notes',{title:'New Note',content:'',tags:[]});
+  if(note) { selectNote(note.id); navigate('notes'); }
+}
+
+async function deleteCurrentNote() {
+  if(!selectedNoteId) return;
+  await apiCall('DELETE',`/notes/${selectedNoteId}`);
+  selectedNoteId = null;
+  document.getElementById('note-title-input').value='';
+  document.getElementById('note-content-input').value='';
+}
+
+// ── Workflows ──
+function renderWorkflows() {
+  const statusIcon = {done:'✓',running:'⟳',pending:'○',failed:'✕'};
+  const html = state.workflows.map(wf=>`
+    <div class="wf-item">
+      <div class="wf-item-header">
+        <div class="wf-name">${wf.name}</div>
+        <div class="wf-status-badge ${wf.status}">${wf.status}</div>
+      </div>
+      <div class="wf-progress-bar"><div class="wf-progress-fill" style="width:${wf.progress||0}%"></div></div>
+      <div class="wf-steps">
+        ${(wf.steps||[]).map(s=>`
+          <div class="wf-step">
+            <div class="step-status ${s.status}">${statusIcon[s.status]||'○'}</div>
+            <div class="step-name">${s.name}</div>
+            <div class="step-agent-tag">${s.agent}</div>
+            ${s.duration?`<div class="step-dur">${s.duration}ms</div>`:''}
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+  document.querySelectorAll('#wf-list,#dash-workflows').forEach(el=>{
+    if(el) el.innerHTML = html||'<div style="color:var(--text3);font-size:13px;padding:12px">No workflows yet</div>';
+  });
+}
+
+// ── Agents ──
+function renderAgents() {
+  const agentColors = {'orchestrator':'var(--accent)','task-agent':'var(--green)','calendar-agent':'var(--amber)','notes-agent':'var(--pink)','workflow-agent':'var(--purple)'};
+  const agentEmoji = {'orchestrator':'✦','task-agent':'▤','calendar-agent':'◫','notes-agent':'◧','workflow-agent':'⟐'};
+
+  const html = state.agents.map(a=>`
+    <div class="agent-card">
+      <div style="height:3px;position:absolute;top:0;left:0;right:0;border-radius:var(--radius) var(--radius) 0 0;background:${a.color||agentColors[a.id]||'var(--accent)'}"></div>
+      <div class="agent-card-header">
+        <div class="agent-avatar" style="background:${a.color||agentColors[a.id]||'var(--accent)'}20;color:${a.color||agentColors[a.id]||'var(--accent)'}">${agentEmoji[a.id]||'◎'}</div>
+        <div>
+          <div class="agent-card-name">${a.name}</div>
+          <div class="agent-card-role">${a.role}</div>
+        </div>
+      </div>
+      <div style="margin-bottom:10px"><span class="status-chip ${a.status}">${a.status}</span></div>
+      <div class="agent-card-stats">
+        <div class="agent-stat"><div class="agent-stat-val" style="color:${a.color||agentColors[a.id]||'var(--accent)'}">${a.tasksCompleted||0}</div><div class="agent-stat-lbl">Completed</div></div>
+        <div class="agent-stat"><div class="agent-stat-val">${a.status==='active'?'ON':'—'}</div><div class="agent-stat-lbl">Status</div></div>
+      </div>
+    </div>`).join('');
+
+  document.querySelectorAll('#agents-grid').forEach(el=>{ if(el) el.innerHTML=html; });
+
+  // Compact for dash side
+  const compact = state.agents.map(a=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:6px;transition:background .15s" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='transparent'">
+      <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${a.color||agentColors[a.id]||'var(--accent)'}"></div>
+      <div style="flex:1;font-size:13px">${a.name}</div>
+      <div class="status-chip ${a.status}" style="font-size:9px">${a.status}</div>
+    </div>`).join('');
+  document.querySelectorAll('#dash-agents,#orch-agents').forEach(el=>{ if(el) el.innerHTML=compact; });
+}
+
+function renderSidebarAgents() {
+  const agentColors = {'orchestrator':'var(--accent)','task-agent':'var(--green)','calendar-agent':'var(--amber)','notes-agent':'var(--pink)','workflow-agent':'var(--purple)'};
+  const el = document.getElementById('agent-status-list');
+  if(!el) return;
+  el.innerHTML = state.agents.map(a=>`
+    <div class="agent-pill">
+      <div class="agent-dot ${a.status}" style="background:${a.color||agentColors[a.id]||'var(--accent)'}"></div>
+      <div class="agent-name">${a.name}</div>
+      <div class="agent-status">${a.status}</div>
+    </div>`).join('');
+}
+
+// ── Logs ──
+function renderLogs() {
+  const feeds = ['dash-activity-feed','wf-activity-feed','orch-activity-feed','agents-activity-feed'];
+  const agentColors = {'orchestrator':'var(--accent2)','task-agent':'var(--green)','calendar-agent':'var(--amber)','notes-agent':'var(--pink)','workflow-agent':'var(--purple)'};
+  const html = state.logs.slice(0,40).map(l=>{
+    const t = new Date(l.ts);
+    const time = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
+    return `<div class="log-item ${l.type||'info'}">
+      <span class="log-time">${time}</span>
+      <span class="log-agent" style="color:${agentColors[l.agent]||'var(--accent2)'}">${l.agent}</span>
+      <span class="log-action">${l.action}</span>
+      <span class="log-detail">${l.detail}</span>
+    </div>`;
+  }).join('');
+  feeds.forEach(id=>{ const el=document.getElementById(id); if(el){ el.innerHTML=html||'<div style="color:var(--text3);font-size:12px;padding:12px">No activity yet</div>'; }});
+}
+
+// ── Orchestrator ──
+async function callOrchestrator(inputId, resultId, btnId) {
+  const input = document.getElementById(inputId);
+  const prompt = input.value.trim();
+  if(!prompt) return;
+  const btn = document.getElementById(btnId);
+  const resultEl = document.getElementById(resultId);
+  btn.disabled=true; btn.textContent='Running…';
+  resultEl.style.display='block';
+  resultEl.innerHTML='<div class="orch-loading"><div class="spinner"></div> Coordinating agents…</div>';
+
+  try {
+    const res = await apiCall('POST','/orchestrate',{prompt});
+    if(res) {
+      const plan = res.plan||{};
+      const actions = plan.actions||[];
+      resultEl.innerHTML = `
+        <div class="orch-result-title">✦ Orchestrator Result</div>
+        <div style="color:var(--text2);margin-bottom:8px">${plan.summary||plan.intent||'Task processed'}</div>
+        ${actions.length>0?`<div class="orch-actions-list">
+          ${actions.map(a=>`<div class="orch-action-item">
+            <span class="orch-action-agent">${a.agent}</span>
+            <span class="orch-action-tool">${a.tool}</span>
+            <span style="color:var(--text2);font-size:11px">${a.payload?.title||a.payload?.name||''}</span>
+          </div>`).join('')}
+        </div>`:''}`;
+    } else {
+      resultEl.innerHTML='<div style="color:var(--red)">Failed to connect to orchestrator. Is the backend running?</div>';
+    }
+  } catch(e) {
+    resultEl.innerHTML=`<div style="color:var(--red)">Error: ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent=btnId.includes('2')?'Execute ✦':'Run ✦';
+  input.value='';
+}
+
+function runOrchestrator() { callOrchestrator('orch-input','orch-result','orch-btn'); }
+function runOrchestrator2() { callOrchestrator('orch-input-2','orch-result-2','orch-btn-2'); }
+function setOrchPrompt(el) { document.getElementById('orch-input').value=el.textContent; }
+function setOrchPrompt2(el) { document.getElementById('orch-input-2').value=el.textContent; }
+
+// ── Modals ──
+function openTaskModal(status) {
+  if(status) document.getElementById('task-status').value=status;
+  document.getElementById('task-modal').classList.add('open');
+}
+function openEventModal() { document.getElementById('event-modal').classList.add('open'); }
+function openWorkflowModal() { document.getElementById('workflow-modal').classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
+
+async function submitTask() {
+  const title = document.getElementById('task-title').value.trim();
+  if(!title) return;
+  const task = {
+    title, status:document.getElementById('task-status').value,
+    priority:document.getElementById('task-priority').value,
+    assignee:document.getElementById('task-assignee').value,
+    dueDate:document.getElementById('task-due').value,
+    tags:document.getElementById('task-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+  };
+  await apiCall('POST','/tasks',task);
+  closeModal('task-modal');
+  document.getElementById('task-title').value='';
+}
+
+async function submitEvent() {
+  const title = document.getElementById('event-title').value.trim();
+  if(!title) return;
+  const colors = {meeting:'#6366f1',sync:'#10b981',deploy:'#f59e0b',review:'#8b5cf6',other:'#ec4899'};
+  const type = document.getElementById('event-type').value;
+  const event = {
+    title, type,
+    start:document.getElementById('event-start').value,
+    end:document.getElementById('event-end').value,
+    color:colors[type]||'#6366f1',
+  };
+  await apiCall('POST','/events',event);
+  closeModal('event-modal');
+  document.getElementById('event-title').value='';
+}
+
+async function submitWorkflow() {
+  const name = document.getElementById('wf-name').value.trim();
+  if(!name) return;
+  const stepsRaw = document.getElementById('wf-steps').value.trim().split('\n').filter(Boolean);
+  const steps = stepsRaw.map(s=>{ const [n,a]=s.split('|'); return {name:(n||'').trim(),agent:(a||'orchestrator').trim()}; });
+  if(steps.length===0) return;
+  await apiCall('POST','/workflows',{name,steps});
+  closeModal('workflow-modal');
+  navigate('workflows');
+}
+
+function editTask(id) {
+  // Quick status cycle
+  const task = state.tasks.find(t=>t.id===id);
+  if(!task) return;
+  const next = {todo:'in-progress','in-progress':'review','review':'done','done':'todo'};
+  apiCall('PUT',`/tasks/${id}`,{status:next[task.status]||'todo'});
+}
+
+async function deleteEvent(id) {
+  await apiCall('DELETE',`/events/${id}`);
+}
+
+function quickAddEvent(dateStr) {
+  document.getElementById('event-start').value = dateStr+'T09:00';
+  document.getElementById('event-end').value = dateStr+'T10:00';
+  openEventModal();
+}
+
+// ── Preset Workflows ──
+async function runPresetWorkflow(type) {
+  const presets = {
+    sprint:{name:'Sprint Kickoff',steps:[
+      {name:'Create sprint tasks',agent:'task-agent'},
+      {name:'Schedule sprint meetings',agent:'calendar-agent'},
+      {name:'Generate sprint notes',agent:'notes-agent'},
+      {name:'Notify stakeholders',agent:'orchestrator'},
+    ]},
+    deploy:{name:'Deploy Pipeline',steps:[
+      {name:'Run test suite',agent:'task-agent'},
+      {name:'Build artifact',agent:'task-agent'},
+      {name:'Stage deployment',agent:'orchestrator'},
+      {name:'Run smoke tests',agent:'task-agent'},
+      {name:'Update release calendar',agent:'calendar-agent'},
+    ]},
+    review:{name:'Code Review',steps:[
+      {name:'Assign reviewers',agent:'orchestrator'},
+      {name:'Schedule review session',agent:'calendar-agent'},
+      {name:'Create review checklist note',agent:'notes-agent'},
+    ]},
+  };
+  const wf = presets[type];
+  if(!wf) return;
+  await apiCall('POST','/workflows',wf);
+  renderWorkflows();
+}
+
+// ── API Helper ──
+async function apiCall(method, path, body) {
+  try {
+    const opts = { method, headers: getHeaders() };
+    if(body) opts.body = JSON.stringify(body);
+    const res = await fetch(API+path, opts);
+    if (res.status === 401 || res.status === 403) {
+      showAuthError();
+      return null;
+    }
+    return await res.json();
+  } catch(e) {
+    console.log('API error:', e.message);
+    return null;
+  }
+}
+
+function showAuthError() {
+  document.getElementById('connection-badge').innerHTML = '<span style="width:5px;height:5px;border-radius:50%;background:var(--amber);display:inline-block"></span> Auth Error';
+  document.getElementById('connection-badge').style.background='#f59e0b18';
+  document.getElementById('connection-badge').style.color='var(--amber)';
+}
+
+
+// ── Init ──
+function renderAll() {
+  renderTasks(); renderCalendar(); renderNotes(); renderWorkflows(); renderAgents(); renderSidebarAgents(); renderLogs(); updateBadges();
+  if(state.logs.length===0) {
+    state.logs = [
+      {id:'1',agent:'orchestrator',action:'SYSTEM_INIT',detail:'Multi-agent system initialized',type:'success',ts:new Date().toISOString()},
+      {id:'2',agent:'task-agent',action:'LOAD',detail:'Loaded active tasks',type:'info',ts:new Date().toISOString()},
+      {id:'3',agent:'calendar-agent',action:'LOAD',detail:'Loaded scheduled events',type:'info',ts:new Date().toISOString()},
+    ];
+    renderLogs();
+  }
+}
+
+// On page load — check for saved key and auto-connect, else show setup screen
+(async function boot() {
+  if (API_KEY) {
+    const ok = await testKey(API_KEY);
+    if (ok) {
+      launchApp();
+      return;
+    } else {
+      localStorage.removeItem('nexus_api_key');
+      API_KEY = '';
+    }
+  }
+  // Show setup screen
+  state.tasks = [
+    {id:'t1',title:'Setup CI/CD pipeline',status:'in-progress',priority:'high',assignee:'Orchestrator',dueDate:'2026-04-10',tags:['devops'],agentId:'task-agent'},
+    {id:'t2',title:'Write API documentation',status:'todo',priority:'medium',assignee:'Docs Agent',dueDate:'2026-04-15',tags:['docs'],agentId:'task-agent'},
+    {id:'t3',title:'Code review for auth module',status:'review',priority:'high',assignee:'Review Agent',dueDate:'2026-04-08',tags:['code'],agentId:'task-agent'},
+    {id:'t4',title:'Deploy to staging',status:'done',priority:'low',assignee:'Deploy Agent',dueDate:'2026-04-05',tags:['deploy'],agentId:'task-agent'},
+  ];
+})();
+</script>
+</body>
+</html>
